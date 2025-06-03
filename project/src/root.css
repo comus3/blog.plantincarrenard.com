@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.markdown-preview h1 {
+  @apply text-2xl font-bold mb-4;
+}
+
+.markdown-preview h2 {
+  @apply text-xl font-bold mb-3;
+}
+
+.markdown-preview h3 {
+  @apply text-lg font-bold mb-2;
+}
+
+.markdown-preview p {
+  @apply mb-4;
+}
+
+.markdown-preview ul, .markdown-preview ol {
+  @apply mb-4 pl-5;
+}
+
+.markdown-preview ul {
+  @apply list-disc;
+}
+
+.markdown-preview ol {
+  @apply list-decimal;
+}
+
+.markdown-preview blockquote {
+  @apply border-l-4 border-gray-200 pl-4 italic my-4;
+}
+
+.markdown-preview a {
+  @apply text-primary-500 hover:underline;
+}
+
+.markdown-preview pre {
+  @apply bg-gray-100 p-4 rounded-lg my-4 overflow-auto;
+}
+
+.markdown-preview code {
+  @apply bg-gray-100 px-1.5 py-0.5 rounded text-sm;
+}
+
+.markdown-preview pre code {
+  @apply bg-transparent p-0;
+}
+
+.markdown-preview img {
+  @apply max-w-full h-auto my-4 rounded-lg;
+}
