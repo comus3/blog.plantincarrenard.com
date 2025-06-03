@@ -1,32 +1,32 @@
 {
   "name": "solidstart-blog-app",
-  "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "private": true,
+  "version": "0.0.1",
   "scripts": {
-    "dev": "solid-start dev",
-    "build": "solid-start build",
-    "start": "solid-start start",
+    "dev": "vinxi dev",
+    "build": "vinxi build",
+    "start": "vinxi start",
     "lint": "eslint . --ext .ts,.tsx"
   },
   "dependencies": {
-    "@solid-primitives/storage": "^2.1.1",
-    "@solidjs/meta": "^0.29.3",
-    "solid-start": "^0.3.11",
-    "@solidjs/router": "^0.8.2",
-    "solid-js": "^1.8.22",
-    "solid-markdown": "^2.0.0",
-    "zod": "^3.22.4"
+    "@solidjs/router": "^0.15.0",
+    "@solidjs/meta": "^0.29.4",
+    "@solidjs/start": "^1.1.0",
+    "solid-js": "^1.9.5",
+    "vinxi": "^0.5.3",
+    "zod": "^3.24.4"
   },
   "devDependencies": {
-    "@types/node": "^20.11.10",
-    "autoprefixer": "^10.4.17",
-    "eslint": "^8.56.0",
-    "postcss": "^8.4.35",
-    "solid-start-node": "^0.3.10",
-    "tailwindcss": "^3.4.1",
+    "@tailwindcss/postcss": "^4.0.5",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^4.0.5",
     "typescript": "^5.5.3",
-    "vite": "^4.4.6",
-    "vite-plugin-solid": "^2.10.2"
+    "eslint": "^8.56.0",
+    "@types/node": "^20.11.10"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

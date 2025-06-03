@@ -1,6 +1,8 @@
-import { defineConfig } from 'vite';
-import solid from 'solid-start/vite';
+// vite.config.ts
+import { defineConfig } from "@solidjs/start/config";
 
 export default defineConfig({
-  plugins: [solid()],
+	start: {
+		middleware: "./src/middleware.ts"
+	}
 });
