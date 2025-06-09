@@ -10,6 +10,7 @@ export const createUserSchema = z.object({
   bio: z.string().max(500).optional(),
   avatarUrl: z.string().url().optional(),
   email: z.string().email().optional(), 
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 export const updateUserSchema = z.object({
@@ -40,6 +41,7 @@ export async function createUser(data: z.infer<typeof createUserSchema>): Promis
       bio: validatedData.bio || '',
       avatarUrl: validatedData.avatarUrl || '',
       email: validatedData.email || '', 
+      password: validatedData.password, 
     },
   });
   
