@@ -1,23 +1,38 @@
+// src/routes/register.tsx
+
 import { createSignal, Show } from 'solid-js'
-import { register, getCurrentUser } from '../lib/auth'
-import { A, useAction, useSubmission } from '@solidjs/router'
-import { createAsync } from '@solidjs/router'
+import { registerAction, getCurrentUser } from '../lib/auth'
+import { A, useSubmissions, useNavigate } from '@solidjs/router'
+import { createAsyncStore, type RouteDefinition } from '@solidjs/router'
+
+export const route = {
+  preload() {
+    getCurrentUser();
+  },
+} satisfies RouteDefinition;
 
 export default function Register() {
   const [error, setError] = createSignal<string>('')
-  const registerAction = useAction(register)
-  const registerSubmission = useSubmission(register)
-  const user = createAsync(() => getCurrentUser())
+  const [confirmPasswordError, setConfirmPasswordError] = createSignal<string>('')
+  const navigate = useNavigate()
+  
+  // Use createAsyncStore like your teacher's pattern
+  const user = createAsyncStore(() => getCurrentUser(), {
+    initialValue: null,
+  })
+  
+  // Use useSubmissions to track form submission state
+  const registerSubmissions = useSubmissions(registerAction)
 
   // Redirect if already logged in
   if (user()) {
-    window.location.href = '/'
+    navigate('/', { replace: true })
     return null
   }
 
-  const handleSubmit = async (e: Event) => {
-    e.preventDefault()
+  const handleSubmit = (e: Event) => {
     setError('')
+    setConfirmPasswordError('')
     
     const form = e.target as HTMLFormElement
     const formData = new FormData(form)
@@ -27,15 +42,13 @@ export default function Register() {
     const confirmPassword = formData.get('confirmPassword') as string
     
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      e.preventDefault() // Only prevent if validation fails
+      setConfirmPasswordError('Passwords do not match')
       return
     }
     
-    try {
-      await registerAction(formData)
-    } catch (err: any) {
-      setError(err.message || 'Registration failed')
-    }
+    // If validation passes, let the form submit naturally
+    // The action and method attributes will handle the submission
   }
 
   return (
@@ -49,11 +62,20 @@ export default function Register() {
         
         <form 
           class="mt-8 space-y-6" 
+          action={registerAction}
+          method="post"
           onSubmit={handleSubmit}
         >
-          <Show when={error()}>
+          <Show when={error() || confirmPasswordError()}>
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error()}
+              {error() || confirmPasswordError()}
+            </div>
+          </Show>
+
+          {/* Show server-side errors from submissions */}
+          <Show when={registerSubmissions.some(sub => sub.error)}>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {registerSubmissions.find(sub => sub.error)?.error?.message || 'Registration failed'}
             </div>
           </Show>
 
@@ -148,10 +170,10 @@ export default function Register() {
           <div>
             <button
               type="submit"
-              disabled={registerSubmission.pending}
+              disabled={registerSubmissions.some(sub => sub.pending)}
               class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {registerSubmission.pending ? 'Creating account...' : 'Create account'}
+              {registerSubmissions.some(sub => sub.pending) ? 'Creating account...' : 'Create account'}
             </button>
           </div>
 

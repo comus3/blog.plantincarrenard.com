@@ -1,19 +1,37 @@
-import { createSignal, Show } from 'solid-js'
-import { login, getCurrentUser } from '../lib/auth'
+// src/routes/login.tsx
+
+import { createSignal, Show, createEffect } from 'solid-js'
+import { loginAction, getCurrentUser } from '../lib/auth'
 import { A, useAction, useSubmission } from '@solidjs/router'
 import { createAsync } from '@solidjs/router'
 
 export default function Login() {
   const [error, setError] = createSignal<string>('')
-  const loginAction = useAction(login)
-  const loginSubmission = useSubmission(login)
+  const loginActionHandler = useAction(loginAction)
+  const loginSubmission = useSubmission(loginAction)
   const user = createAsync(() => getCurrentUser())
 
+  // Handle submission results
+  createEffect(() => {
+    // Check for errors in the submission
+    if (loginSubmission.error) {
+      setError(String(loginSubmission.error))
+    }
+    // If using the return-error approach, check the result
+    if (loginSubmission.result && typeof loginSubmission.result === 'object' && loginSubmission.result !== null) {
+      const result = loginSubmission.result as any
+      if (result.error) {
+        setError(result.error)
+      }
+    }
+  })
+
   // Redirect if already logged in
-  if (user()) {
-    window.location.href = '/'
-    return null
-  }
+  createEffect(() => {
+    if (user()) {
+      window.location.href = '/'
+    }
+  })
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault()
@@ -22,11 +40,8 @@ export default function Login() {
     const form = e.target as HTMLFormElement
     const formData = new FormData(form)
     
-    try {
-      await loginAction(formData)
-    } catch (err: any) {
-      setError(err.message || 'Login failed')
-    }
+    // Just call the action - don't try/catch here
+    await loginActionHandler(formData)
   }
 
   return (
