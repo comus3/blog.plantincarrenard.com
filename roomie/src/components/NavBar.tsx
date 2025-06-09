@@ -1,24 +1,33 @@
-// src/components/NavBar.tsx (fixed)
-import { Component, Show, Suspense, createResource, createEffect } from 'solid-js'
+// src/components/NavBar.tsx 
+import { Component, Show, createEffect, createSignal, onMount } from 'solid-js'
 import { A, useAction } from '@solidjs/router'
-import { getCurrentUser, logoutAction } from '../lib/auth'
+import { logoutAction } from '../lib/auth'
+import { useAuth } from './AuthProvider'
 
 const NavBar: Component = () => {
-  const [user] = createResource(() => getCurrentUser())
+  const { user, isLoggedIn, isLoading, refetch } = useAuth()
   const logout = useAction(logoutAction)
+  const [isHydrated, setIsHydrated] = createSignal(false)
+
+  // Only show auth state after hydration to prevent mismatch
+  onMount(() => {
+    setIsHydrated(true)
+  })
 
   // Debug the user resource
   createEffect(() => {
     console.log('NavBar - User resource state:', {
-      loading: user.loading,
-      error: user.error,
+      loading: isLoading(),
       data: user(),
-      state: user.state
+      isLoggedIn: isLoggedIn(),
+      isHydrated: isHydrated()
     })
   })
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
+    // Refresh auth state after logout
+    refetch()
   }
 
   return (
@@ -42,26 +51,34 @@ const NavBar: Component = () => {
               >
                 About
               </A>
+              <Show when={isHydrated() && isLoggedIn()}>
+                <A 
+                  href="/explore" 
+                  class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                  activeClass="text-gray-900 bg-gray-100"
+                >
+                  Explore
+                </A>
+              </Show>
             </div>
           </div>
 
-          {/* Auth Section */}
+          {/* Auth Section - Always show loading until hydrated */}
           <div class="flex items-center space-x-4">
-            <Suspense 
+            <Show 
+              when={isHydrated() && !isLoading()}
               fallback={
-                <div class="h-8 w-20 bg-gray-200 rounded animate-pulse">
-                  Loading...
+                /* Always show loading during SSR and initial hydration */
+                <div class="h-8 w-32 bg-gray-200 rounded animate-pulse flex items-center justify-center">
+                  <span class="text-xs text-gray-500">Loading...</span>
                 </div>
               }
             >
               <Show 
-                when={user()} 
+                when={isLoggedIn()} 
                 fallback={
+                  /* Not logged in - show login/register */
                   <div class="flex items-center space-x-2">
-                    {/* Debug info */}
-                    <div class="text-xs text-red-500">
-                      Debug: {user.error ? 'Error' : user.loading ? 'Loading' : 'No user'} | User: {JSON.stringify(user())}
-                    </div>
                     <A 
                       href="/login"
                       class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium border border-gray-300 hover:border-gray-400 transition-colors"
@@ -77,13 +94,10 @@ const NavBar: Component = () => {
                   </div>
                 }
               >
+                {/* Logged in - show user profile */}
                 <div class="flex items-center space-x-3">
-                  {/* Debug info for when user exists */}
-                  <div class="text-xs text-green-500">
-                    User loaded: {user()?.username || 'No username'}
-                  </div>
                   <A 
-                    href={`/profile/${user()?.username}`}
+                    href={`/profile/${user()?.username || ''}`}
                     class="flex items-center space-x-2 text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                   >
                     <Show 
@@ -98,11 +112,11 @@ const NavBar: Component = () => {
                     >
                       <img 
                         src={user()?.avatarUrl} 
-                        alt={user()?.displayName || user()?.username}
+                        alt={user()?.displayName || user()?.username || 'User'}
                         class="w-8 h-8 rounded-full object-cover"
                       />
                     </Show>
-                    <span class="hidden sm:block">{user()?.displayName || user()?.username}</span>
+                    <span class="hidden sm:block">{user()?.displayName || user()?.username || 'User'}</span>
                   </A>
                   
                   <button
@@ -113,7 +127,7 @@ const NavBar: Component = () => {
                   </button>
                 </div>
               </Show>
-            </Suspense>
+            </Show>
           </div>
         </div>
       </div>
