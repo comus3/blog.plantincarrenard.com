@@ -143,10 +143,6 @@ export default function PostDetail() {
               
               <div class="min-h-screen bg-gray-50">
                 <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-                  {/* Debug info for when post exists */}
-                  <div class="text-xs text-green-500 mb-4">
-                    Post loaded: {postData?.title || 'No title'} | ID: {params.id}
-                  </div>
                   
                   {/* Navigation */}
                   <div class="mb-6">
