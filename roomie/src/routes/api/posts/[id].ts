@@ -5,6 +5,8 @@ import { getPostById, updatePost, deletePost } from '../../../lib/posts';
 
 export async function GET(event: APIEvent) {
   try {
+
+    console.log('Fetching post with ID:', event.params.id);
     const id = event.params.id;
     const post = await getPostById(id);
     
