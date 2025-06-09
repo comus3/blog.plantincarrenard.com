@@ -4,6 +4,9 @@ import { FileRoutes } from "@solidjs/start/router";
 import { Suspense } from "solid-js";
 import "./app.css";
 import NavBar from './components/NavBar'; 
+import { isServer } from "solid-js/web";
+
+console.log("Rendering on:", isServer ? "server" : "client");
 
 export default function App() {
   return (
