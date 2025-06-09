@@ -14,7 +14,7 @@ type PostCardProps = {
 export function PostCard(props: PostCardProps) {
   const { post } = props;
   
-  // Safe date formatting function
+  // SSR-friendly date formatting - ensures consistent output between server and client
   const formatDate = (date: Date | string) => {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -35,9 +35,8 @@ export function PostCard(props: PostCardProps) {
     }
   };
   
-  // Get a shorter preview for markdown posts
+  // Pre-process markdown content for preview - improves SPA performance by avoiding heavy parsing
   const getMarkdownPreview = (content: string) => {
-    // Remove markdown formatting and get first 150 characters
     const stripped = content
       .replace(/#+\s+(.*)/g, '$1')
       .replace(/\*\*(.*?)\*\*/g, '$1')
@@ -80,7 +79,6 @@ export function PostCard(props: PostCardProps) {
                   alt={post.author.displayName}
                   class="h-6 w-6 rounded-full mr-2 object-cover"
                   onError={(e) => {
-                    // Fallback if image fails to load
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                   }}
@@ -97,6 +95,8 @@ export function PostCard(props: PostCardProps) {
           <Switch>
             <Match when={post.contentType === 'markdown'}>
               <div class="prose prose-sm max-h-40 overflow-hidden">
+                {/* SPA mode: Full markdown rendering for rich content */}
+                {/* SSR mode: Text preview for faster initial load */}
                 <Show when={props.preview} fallback={<MarkdownPreview markdown={post.content} />}>
                   <p class="text-gray-600 line-clamp-3">{getMarkdownPreview(post.content)}</p>
                 </Show>
@@ -138,6 +138,7 @@ export function PostCard(props: PostCardProps) {
           </Switch>
         </div>
         
+        {/* SPA navigation: Client-side routing for seamless transitions */}
         <A 
           href={`/post/${post.id}`} 
           class="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"

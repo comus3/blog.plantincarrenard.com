@@ -9,12 +9,11 @@ const NavBar: Component = () => {
   const logout = useAction(logoutAction)
   const [isHydrated, setIsHydrated] = createSignal(false)
 
-  // Only show auth state after hydration to prevent mismatch
+  // Hydration guard - prevents SSR/client mismatch by only showing auth state after hydration
   onMount(() => {
     setIsHydrated(true)
   })
 
-  // Debug the user resource
   createEffect(() => {
     console.log('NavBar - User resource state:', {
       loading: isLoading(),
@@ -26,7 +25,6 @@ const NavBar: Component = () => {
 
   const handleLogout = async () => {
     await logout()
-    // Refresh auth state after logout
     refetch()
   }
 
@@ -34,7 +32,6 @@ const NavBar: Component = () => {
     <nav class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
-          {/* Navigation Links */}
           <div class="hidden md:block">
             <div class="ml-10 flex items-baseline space-x-4">
               <A 
@@ -51,6 +48,7 @@ const NavBar: Component = () => {
               >
                 About
               </A>
+              {/* Protected route - only visible to authenticated users after hydration */}
               <Show when={isHydrated() && isLoggedIn()}>
                 <A 
                   href="/explore" 
@@ -63,12 +61,12 @@ const NavBar: Component = () => {
             </div>
           </div>
 
-          {/* Auth Section - Always show loading until hydrated */}
+          {/* SSR-safe auth section with loading placeholder to prevent layout shift */}
           <div class="flex items-center space-x-4">
             <Show 
               when={isHydrated() && !isLoading()}
               fallback={
-                /* Always show loading during SSR and initial hydration */
+                // Skeleton loader shown during SSR and initial hydration to maintain consistent layout
                 <div class="h-8 w-32 bg-gray-200 rounded animate-pulse flex items-center justify-center">
                   <span class="text-xs text-gray-500">Loading...</span>
                 </div>
@@ -77,7 +75,6 @@ const NavBar: Component = () => {
               <Show 
                 when={isLoggedIn()} 
                 fallback={
-                  /* Not logged in - show login/register */
                   <div class="flex items-center space-x-2">
                     <A 
                       href="/login"
@@ -94,7 +91,7 @@ const NavBar: Component = () => {
                   </div>
                 }
               >
-                {/* Logged in - show user profile */}
+                {/* Authenticated user profile section */}
                 <div class="flex items-center space-x-3">
                   <A 
                     href={`/profile/${user()?.username || ''}`}

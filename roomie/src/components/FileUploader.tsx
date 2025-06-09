@@ -1,9 +1,5 @@
 // src/components/FileUploader.tsx
 
-// ================================================================
-
-// src/components/SimpleFileUploader.tsx - NO EXTERNAL DEPENDENCIES
-
 import { Component, createSignal, Show } from "solid-js";
 import { PostType } from "~/lib/types";
 
@@ -12,6 +8,8 @@ interface SimpleFileUploaderProps {
   onFileSelect: (file: File | string) => void;
 }
 
+// SolidJS component for file uploads - uses reactive signals for client-side state management
+// This component handles both SPA drag-and-drop interactions and file preview functionality
 export const SimpleFileUploader: Component<SimpleFileUploaderProps> = (props) => {
   const [isDragging, setIsDragging] = createSignal(false);
   const [selectedFile, setSelectedFile] = createSignal<File | null>(null);
@@ -35,6 +33,8 @@ export const SimpleFileUploader: Component<SimpleFileUploaderProps> = (props) =>
     }
   };
 
+  // FileReader API for client-side file processing - essential for SPA file handling
+  // without requiring server round-trips for preview functionality
   const handleFileInput = (files: FileList | null) => {
     if (!files || files.length === 0) return;
     
@@ -58,6 +58,7 @@ export const SimpleFileUploader: Component<SimpleFileUploaderProps> = (props) =>
     }
   };
 
+  // Drag and drop event handlers - pure client-side SPA interaction patterns
   const handleDragEnter = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -84,6 +85,7 @@ export const SimpleFileUploader: Component<SimpleFileUploaderProps> = (props) =>
     handleFileInput(files);
   };
 
+  // Programmatic file input trigger - bypasses traditional form submission for SPA workflow
   const triggerFileInput = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -118,6 +120,7 @@ export const SimpleFileUploader: Component<SimpleFileUploaderProps> = (props) =>
             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <div class="mt-4">
+            {/* SolidJS Show component for conditional rendering - more efficient than traditional conditional operators */}
             <Show when={selectedFile()} fallback={
               <>
                 <p class="text-sm text-gray-600">
@@ -147,6 +150,7 @@ export const SimpleFileUploader: Component<SimpleFileUploaderProps> = (props) =>
         </div>
       </div>
 
+      {/* Client-side preview functionality - avoids server uploads for immediate feedback */}
       <Show when={fileContent() && (props.type === 'gif' || props.type === 'video')}>
         <div class="mt-4 p-4 bg-gray-50 rounded-md">
           <p class="text-sm text-gray-600 mb-2">Preview:</p>

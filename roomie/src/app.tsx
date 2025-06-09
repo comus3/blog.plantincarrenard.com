@@ -1,4 +1,4 @@
-// src/app.tsx - FINAL VERSION WITH REAL PROFILE
+// src/app.tsx
 
 import { MetaProvider, Title } from "@solidjs/meta";
 import { Router, Route } from "@solidjs/router";
@@ -11,7 +11,7 @@ import { isServer } from "solid-js/web";
 
 console.log("🚀 App.tsx loading on:", isServer ? "server" : "client");
 
-// 🎯 IMPORT THE REAL PROFILE COMPONENT
+// Lazy loading for better code splitting in SPA mode
 const Profile = lazy(() => import("./routes/profile/[username]"));
 
 export default function App() {
@@ -26,6 +26,8 @@ export default function App() {
             <Title>Best Blog Ever</Title>
             <AuthProvider>
               <NavBar />
+              {/* SSR: Suspense ensures graceful loading states during server rendering */}
+              {/* SPA: Provides smooth transitions between route changes */}
               <Suspense fallback={
                 <div class="flex items-center justify-center min-h-screen">
                   <div class="text-center">
@@ -41,10 +43,10 @@ export default function App() {
         );
       }}
     >
-      {/* 🎯 REAL PROFILE ROUTE - manually registered to bypass FileRoutes issues */}
+      {/* Manual route registration for better control over SSR/SPA behavior */}
       <Route path="/profile/:username" component={Profile} />
       
-      {/* Keep FileRoutes for other routes */}
+      {/* File-based routing: Automatic route generation for development speed */}
       <FileRoutes />
     </Router>
   );

@@ -1,4 +1,3 @@
-
 import { Component, createSignal, Show } from "solid-js";
 
 type SimpleMarkdownEditorProps = {
@@ -16,7 +15,8 @@ export const SimpleMarkdownEditor: Component<SimpleMarkdownEditorProps> = (props
     props.onChange(value);
   };
 
-  // Simple markdown preview without external libraries
+  // Client-side markdown rendering - ideal for SPA interactivity
+  // This approach keeps rendering reactive and fast for real-time preview
   const renderSimpleMarkdown = (markdown: string) => {
     let html = markdown
       // Headers
@@ -47,10 +47,14 @@ export const SimpleMarkdownEditor: Component<SimpleMarkdownEditorProps> = (props
         </button>
       </div>
       
+      {/* SolidJS Show component provides efficient conditional rendering
+          Perfect for SPA user experience - no full page reloads needed */}
       <Show
         when={!showPreview()}
         fallback={
           <div class="border border-gray-300 rounded-md p-3 bg-gray-50 min-h-[200px]">
+            {/* innerHTML approach works well for SPA but would need 
+                server-side sanitization for SSR security */}
             <div 
               class="prose prose-sm max-w-none"
               innerHTML={renderSimpleMarkdown(currentValue())}

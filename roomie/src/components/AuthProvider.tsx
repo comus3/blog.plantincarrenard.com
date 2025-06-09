@@ -1,4 +1,4 @@
-// src/components/AuthProvider.tsx - DEBUG VERSION
+// src/components/AuthProvider.tsx
 import { createContext, useContext, createResource, ParentComponent, createEffect, onMount } from "solid-js";
 import { getCurrentUser } from "../lib/auth";
 import { User } from "../lib/types";
@@ -14,57 +14,46 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>();
 
 export const AuthProvider: ParentComponent = (props) => {
-  console.log(`🔐 [${isServer ? 'SERVER' : 'CLIENT'}] AuthProvider initializing`);
-  
-  // Create a resource that fetches current user with SSR-safe initial value
+  // SSR-safe authentication: Resource handles server/client hydration seamlessly
+  // SolidJS resources automatically suspend rendering until data is available on the server
   const [user, { refetch }] = createResource(
     () => {
-      console.log(`🔄 [${isServer ? 'SERVER' : 'CLIENT'}] AuthProvider resource fetching getCurrentUser`);
       return getCurrentUser();
     },
     {
-      // Start with null on both server and client to prevent hydration mismatch
+      // SSR hydration strategy: Start with null on both server and client 
+      // to prevent hydration mismatches. The client will fetch fresh data after hydration.
       initialValue: null
     }
   );
 
-  // 🐛 DEBUG: Track auth state changes
   createEffect(() => {
     const currentUser = user();
     const loading = user.loading;
     const error = user.error;
-    
-    console.log(`🔐 AuthProvider state change:`, {
-      environment: isServer ? 'SERVER' : 'CLIENT',
-      user: currentUser?.username || 'none',
-      userExists: !!currentUser,
-      loading,
-      error: error ? String(error) : 'none',
-      isLoggedIn: !!currentUser && !loading
-    });
   });
 
   onMount(() => {
-    console.log(`🎯 AuthProvider mounted on ${isServer ? 'SERVER' : 'CLIENT'}`);
+    // Client-side only: Component has successfully hydrated
+    // Perfect place for client-specific auth initialization
   });
 
   const contextValue = {
     user: () => {
       const currentUser = user() || null;
-      console.log(`🔍 AuthProvider.user() called, returning:`, currentUser?.username || 'null');
       return currentUser;
     },
     isLoggedIn: () => {
       const loggedIn = !!user() && !user.loading;
-      console.log(`🔍 AuthProvider.isLoggedIn() called, returning:`, loggedIn);
       return loggedIn;
     },
     isLoading: () => {
       const loading = user.loading;
-      console.log(`🔍 AuthProvider.isLoading() called, returning:`, loading);
       return loading;
     },
-    refetch, // This is key - allows manual refresh after login/logout
+    // Critical for SPA navigation: Allows manual refresh after login/logout
+    // without full page reload, maintaining SPA user experience
+    refetch,
   };
 
   return (
@@ -79,6 +68,5 @@ export const useAuth = () => {
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");
   }
-  console.log(`🔍 useAuth() called, context exists:`, !!context);
   return context;
 };

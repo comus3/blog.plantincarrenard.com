@@ -1,4 +1,4 @@
-// src/components/CreatePostForm.tsx - USING DEPENDENCY-FREE COMPONENTS
+// src/components/CreatePostForm.tsx
 
 import { Component, createSignal, Show, For, createEffect, onMount } from "solid-js";
 import { useAction, useSubmission } from "@solidjs/router";
@@ -7,11 +7,12 @@ import { createPostAction } from "~/lib/posts";
 import { useAuth } from "./AuthProvider";
 import { isServer } from "solid-js/web";
 
-// Import our dependency-free components
+// SSR-safe imports - these components handle client/server rendering gracefully
 import { SimpleMarkdownEditor } from "./MarkdownEditor";
 import { SimpleFileUploader } from "./FileUploader";
 
 export const CreatePostForm: Component = () => {
+  // SSR hydration logging - helps track server vs client rendering phases
   console.log(`🎨 [${isServer ? 'SERVER' : 'CLIENT'}] CreatePostForm rendering`);
   
   const [selectedType, setSelectedType] = createSignal<PostType>('markdown');
@@ -24,6 +25,7 @@ export const CreatePostForm: Component = () => {
   const submission = useSubmission(createPostAction);
 
   onMount(() => {
+    // Client-side only lifecycle - critical for SPA functionality after SSR hydration
     console.log(`🎯 CreatePostForm mounted on CLIENT`);
     setIsMounted(true);
   });
@@ -74,6 +76,7 @@ export const CreatePostForm: Component = () => {
     console.log('📤 Submitting form data');
 
     try {
+      // Server action call - handles both SSR and SPA contexts seamlessly
       const result = await createPost(formData);
       console.log('✅ Create post result:', result);
       
@@ -108,7 +111,6 @@ export const CreatePostForm: Component = () => {
         <form onSubmit={handleSubmit} class="p-4 sm:p-6">
           <div class="space-y-6">
             
-            {/* Title Input */}
             <div>
               <label for="title" class="block text-sm font-medium text-gray-700">
                 Post Title
@@ -130,7 +132,6 @@ export const CreatePostForm: Component = () => {
               </div>
             </div>
 
-            {/* Content Type Selection */}
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Content Type
@@ -164,7 +165,7 @@ export const CreatePostForm: Component = () => {
               </div>
             </div>
 
-            {/* Content Editor */}
+            {/* Dynamic content editor - switches between components based on type */}
             <div>
               <Show when={selectedType() === 'markdown'}>
                 <SimpleMarkdownEditor 
@@ -188,7 +189,7 @@ export const CreatePostForm: Component = () => {
               </Show>
             </div>
 
-            {/* Submission States */}
+            {/* Progressive enhancement - submission states work in both SSR and SPA modes */}
             <Show when={submission.result && submission.result.error}>
               <div class="bg-red-50 border border-red-200 rounded-md p-4">
                 <p class="text-sm text-red-700">{submission.result?.error}</p>
@@ -207,7 +208,6 @@ export const CreatePostForm: Component = () => {
               </div>
             </Show>
 
-            {/* Submit Button */}
             <div class="flex justify-end">
               <button
                 type="submit"

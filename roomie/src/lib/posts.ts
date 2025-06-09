@@ -52,7 +52,6 @@ function transformPostWithAuthor(prismaPost: any): PostWithAuthor {
   };
 }
 
-// Database functions (keeping your existing ones)
 export async function createPost(data: z.infer<typeof createPostSchema>): Promise<Post> {
   const validatedData = createPostSchema.parse(data);
   
@@ -137,7 +136,6 @@ export async function searchPosts(query: string, limit?: number): Promise<PostWi
   return posts.map(transformPostWithAuthor);
 }
 
-// SolidJS Router cache functions
 export const getPosts = cache(async (search?: string, limit?: number): Promise<PostWithAuthor[]> => {
   "use server";
   try {
@@ -199,7 +197,6 @@ export const createPostAction = action(async (formData: FormData) => {
       authorId 
     });
 
-    // Create the post using your existing function
     const newPost = await createPost(validatedData);
     
     // Invalidate relevant caches
@@ -237,10 +234,8 @@ export const updatePostAction = action(async (formData: FormData) => {
     if (content) updateData.content = content;
     if (contentType) updateData.contentType = contentType;
 
-    // Update the post using your existing function
     const updatedPost = await updatePost(id, updateData);
     
-    // Invalidate relevant caches
     revalidate("posts");
     revalidate("user-posts");
     revalidate("post");
@@ -262,7 +257,6 @@ export const deletePostAction = action(async (id: string) => {
   "use server";
   
   try {
-    // Get the post first to know which caches to revalidate
     const post = await getPostById(id);
     
     if (!post) {
