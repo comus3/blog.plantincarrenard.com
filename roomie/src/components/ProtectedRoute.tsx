@@ -1,5 +1,7 @@
 // src/components/ProtectedRoute.tsx
 
+
+// i tried to use the protected route component but since im having issues im going to use smth else
 import { createAsync, Navigate } from '@solidjs/router'
 import { Show, Suspense } from 'solid-js'
 import { getCurrentUser } from '../lib/auth'
