@@ -1,37 +1,87 @@
-import { Title, useParams, useRouteData } from "solid-start";
-import { createResource, For, Show, Suspense } from "solid-js";
-import { createServerData$ } from "solid-start/server";
+// src/routes/profile/[username].tsx
+
+import { useParams } from "@solidjs/router";
+import { Title } from "@solidjs/meta";
+import { createAsync, cache } from "@solidjs/router";
+import { For, Show, Suspense } from "solid-js";
 import { PostCard } from "~/components/PostCard";
 import { CreatePostForm } from "~/components/CreatePostForm";
-import { getUserByUsername, getPostsByUser, currentUser } from "~/lib/mockData";
-import { PostWithAuthor } from "~/lib/types";
+import { User, PostWithAuthor } from "~/lib/types";
+import { getCurrentUser } from "~/lib/auth"; // Import your actual auth function
 
-export function routeData() {
-  const params = useParams();
+// Cache functions for server-side data fetching
+const getUser = cache(async (username: string): Promise<User | null> => {
+  "use server";
   
-  const user = createServerData$(
-    async (username) => getUserByUsername(username),
-    { key: () => params.username }
-  );
+  try {
+    const apiUrl = process.env.API_URL || 'http://localhost:3000';
+    const response = await fetch(`${apiUrl}/api/users/username/${username}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Failed to fetch user: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    return null;
+  }
+}, "user");
+
+const getUserPosts = cache(async (authorId: string): Promise<PostWithAuthor[]> => {
+  "use server";
   
-  const posts = createServerData$(
-    async (username) => {
-      const user = await getUserByUsername(username);
-      if (!user) return [];
-      return getPostsByUser(user.id);
-    },
-    { key: () => params.username }
-  );
-  
-  return { user, posts };
-}
+  try {
+    const apiUrl = process.env.API_URL || 'http://localhost:3000';
+    const response = await fetch(`${apiUrl}/api/posts/author/${authorId}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return [];
+      }
+      throw new Error(`Failed to fetch user posts: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
+    return [];
+  }
+}, "user-posts");
 
 export default function Profile() {
   const params = useParams();
-  const { user, posts } = useRouteData<typeof routeData>();
+  
+  // Reactive data fetching
+  const user = createAsync(() => getUser(params.username));
+  const posts = createAsync(() => {
+    const userData = user();
+    return userData ? getUserPosts(userData.id) : Promise.resolve([]);
+  });
+  const currentUser = createAsync(() => getCurrentUser());
   
   // Check if this profile belongs to the current user
-  const isCurrentUser = () => user()?.username === currentUser.username;
+  const isCurrentUser = () => {
+    const current = currentUser();
+    const profileUser = user();
+    return current && profileUser && current.username === profileUser.username;
+  };
+
+  // Format date helper
+  const formatJoinDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Unknown date';
+    }
+  };
   
   return (
     <>
@@ -40,8 +90,15 @@ export default function Profile() {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Suspense fallback={
           <div class="animate-pulse pt-8 pb-6">
-            <div class="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-            <div class="h-4 bg-gray-200 rounded w-1/2"></div>
+            <div class="flex items-center">
+              <div class="h-16 w-16 rounded-full bg-gray-200 mr-4"></div>
+              <div>
+                <div class="h-8 bg-gray-200 rounded w-48 mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-32"></div>
+              </div>
+            </div>
+            <div class="mt-4 h-4 bg-gray-200 rounded w-3/4"></div>
+            <div class="mt-2 h-3 bg-gray-200 rounded w-1/2"></div>
           </div>
         }>
           <Show
@@ -53,83 +110,101 @@ export default function Profile() {
               </div>
             }
           >
-            <div class="pt-8 pb-6">
-              <div class="flex items-center">
-                <img
-                  src={user()?.avatarUrl}
-                  alt={user()?.displayName}
-                  class="h-16 w-16 rounded-full object-cover mr-4"
-                />
-                <div>
-                  <h1 class="text-2xl font-bold text-gray-900">{user()?.displayName}</h1>
-                  <p class="text-gray-600">@{user()?.username}</p>
+            {(userData) => (
+              <div class="pt-8 pb-6">
+                <div class="flex items-center">
+                  <img
+                    src={userData().avatarUrl || '/default-avatar.svg'}
+                    alt={userData().displayName}
+                    class="h-16 w-16 rounded-full object-cover mr-4 border-2 border-gray-200"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/default-avatar.svg';
+                    }}
+                  />
+                  <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{userData().displayName}</h1>
+                    <p class="text-gray-600">@{userData().username}</p>
+                  </div>
                 </div>
+                
+                <Show when={userData().bio}>
+                  <p class="mt-4 text-gray-700 whitespace-pre-line">{userData().bio}</p>
+                </Show>
+                
+                <p class="mt-2 text-sm text-gray-500">
+                  Joined on {formatJoinDate(userData().createdAt)}
+                </p>
               </div>
-              
-              <p class="mt-4 text-gray-700">{user()?.bio}</p>
-              
-              <p class="mt-2 text-sm text-gray-500">
-                Joined on {new Date(user()?.createdAt || '').toLocaleDateString()}
-              </p>
-            </div>
+            )}
           </Show>
         </Suspense>
         
         <Show when={isCurrentUser()}>
-          <div class="my-8">
+          <div class="my-8 border-t border-gray-200 pt-8">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Create New Post</h2>
             <CreatePostForm />
           </div>
         </Show>
         
         <div class="pb-12">
-          <h2 class="text-xl font-bold text-gray-900 mb-6">
-            {isCurrentUser() ? 'Your Posts' : `${user()?.displayName}'s Posts`}
-          </h2>
-          
-          <Suspense fallback={
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {Array(3).fill(0).map(() => (
-                <div class="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
-                  <div class="p-5">
-                    <div class="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
-                    <div class="flex items-center mb-4">
-                      <div class="h-6 w-6 rounded-full bg-gray-200 mr-2"></div>
-                      <div class="h-4 bg-gray-200 rounded w-1/3"></div>
-                    </div>
-                    <div class="space-y-2">
-                      <div class="h-4 bg-gray-200 rounded w-full"></div>
-                      <div class="h-4 bg-gray-200 rounded w-full"></div>
-                      <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+          <div class="border-t border-gray-200 pt-8">
+            <h2 class="text-xl font-bold text-gray-900 mb-6">
+              {isCurrentUser() ? 'Your Posts' : `${user()?.displayName}'s Posts`}
+            </h2>
+            
+            <Suspense fallback={
+              <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {Array(6).fill(0).map((_, i) => (
+                  <div class="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+                    <div class="p-5">
+                      <div class="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                      <div class="flex items-center mb-4">
+                        <div class="h-6 w-6 rounded-full bg-gray-200 mr-2"></div>
+                        <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                      </div>
+                      <div class="space-y-2 mb-4">
+                        <div class="h-4 bg-gray-200 rounded w-full"></div>
+                        <div class="h-4 bg-gray-200 rounded w-full"></div>
+                        <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                      <div class="h-4 bg-gray-200 rounded w-20"></div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          }>
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                ))}
+
+              </div>
+            }>
               <Show
-                when={posts()?.length > 0}
+                when={posts() && posts()!.length > 0}
                 fallback={
-                  <div class="col-span-full text-center py-12">
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">
-                      No posts yet
-                    </h3>
-                    <p class="text-gray-500">
-                      {isCurrentUser() 
-                        ? "You haven't created any posts yet. Use the form above to get started." 
-                        : `${user()?.displayName} hasn't created any posts yet.`}
-                    </p>
+                  <div class="text-center py-16 bg-gray-50 rounded-lg">
+                    <div class="max-w-sm mx-auto">
+                      <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      <h3 class="text-lg font-medium text-gray-900 mb-2">
+                        No posts yet
+                      </h3>
+                      <p class="text-gray-500">
+                        {isCurrentUser() 
+                          ? "You haven't created any posts yet. Use the form above to share your first post!" 
+                          : `${user()?.displayName} hasn't shared any posts yet.`}
+                      </p>
+                    </div>
                   </div>
                 }
               >
-                <For each={posts()}>
-                  {(post: PostWithAuthor) => (
-                    <PostCard post={post} showAuthor={false} />
-                  )}
-                </For>
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  <For each={posts()}>
+                    {(post: PostWithAuthor) => (
+                      <PostCard post={post} showAuthor={false} preview={true} />
+                    )}
+                  </For>
+                </div>
               </Show>
-            </div>
-          </Suspense>
+            </Suspense>
+          </div>
         </div>
       </div>
     </>

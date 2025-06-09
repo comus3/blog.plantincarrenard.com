@@ -16,18 +16,18 @@ export const CreatePostForm: Component = () => {
   const [selectedType, setSelectedType] = createSignal<PostType>('markdown');
   const [title, setTitle] = createSignal('');
   const [content, setContent] = createSignal('');
-  
+
   const [creating, { Form }] = createServerAction$(async (form: FormData) => {
     const title = form.get("title")?.toString() || "";
     const contentType = form.get("contentType")?.toString() as PostType;
     const content = form.get("content")?.toString() || "";
-    
+
     const result = postSchema.safeParse({ title, contentType, content });
-    
+
     if (!result.success) {
       return { error: result.error.errors[0].message };
     }
-    
+
     // Create the post
     const newPost = await createPost({
       title,
@@ -35,10 +35,10 @@ export const CreatePostForm: Component = () => {
       content,
       authorId: currentUser.id,
     });
-    
+
     return { success: true, post: newPost };
   });
-  
+
   return (
     <div class="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
       <div class="border-b border-gray-200">
@@ -46,7 +46,7 @@ export const CreatePostForm: Component = () => {
           <h2 class="text-lg font-medium text-gray-900">Create a New Post</h2>
         </div>
       </div>
-      
+
       <Form class="p-4 sm:p-6">
         <div class="space-y-6">
           <div>
@@ -66,93 +66,89 @@ export const CreatePostForm: Component = () => {
               />
             </div>
           </div>
-          
+
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Content Type
             </label>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <label 
-                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
-                  selectedType() === 'markdown' 
-                    ? 'border-primary-500 bg-primary-50 text-primary-700' 
+              <label
+                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${selectedType() === 'markdown'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                  }`}
               >
-                <input 
-                  type="radio" 
-                  name="contentType" 
-                  value="markdown" 
-                  checked={selectedType() === 'markdown'} 
+                <input
+                  type="radio"
+                  name="contentType"
+                  value="markdown"
+                  checked={selectedType() === 'markdown'}
                   onChange={() => setSelectedType('markdown')}
-                  class="sr-only" 
+                  class="sr-only"
                 />
                 <span>Markdown</span>
               </label>
-              
-              <label 
-                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
-                  selectedType() === 'audio' 
-                    ? 'border-primary-500 bg-primary-50 text-primary-700' 
+
+              <label
+                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${selectedType() === 'audio'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                  }`}
               >
-                <input 
-                  type="radio" 
-                  name="contentType" 
-                  value="audio" 
-                  checked={selectedType() === 'audio'} 
+                <input
+                  type="radio"
+                  name="contentType"
+                  value="audio"
+                  checked={selectedType() === 'audio'}
                   onChange={() => setSelectedType('audio')}
-                  class="sr-only" 
+                  class="sr-only"
                 />
                 <span>Audio</span>
               </label>
-              
-              <label 
-                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
-                  selectedType() === 'video' 
-                    ? 'border-primary-500 bg-primary-50 text-primary-700' 
+
+              <label
+                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${selectedType() === 'video'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                  }`}
               >
-                <input 
-                  type="radio" 
-                  name="contentType" 
-                  value="video" 
-                  checked={selectedType() === 'video'} 
+                <input
+                  type="radio"
+                  name="contentType"
+                  value="video"
+                  checked={selectedType() === 'video'}
                   onChange={() => setSelectedType('video')}
-                  class="sr-only" 
+                  class="sr-only"
                 />
                 <span>Video</span>
               </label>
-              
-              <label 
-                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${
-                  selectedType() === 'gif' 
-                    ? 'border-primary-500 bg-primary-50 text-primary-700' 
+
+              <label
+                class={`flex items-center justify-center p-3 border rounded-md cursor-pointer transition-colors ${selectedType() === 'gif'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                  }`}
               >
-                <input 
-                  type="radio" 
-                  name="contentType" 
-                  value="gif" 
-                  checked={selectedType() === 'gif'} 
+                <input
+                  type="radio"
+                  name="contentType"
+                  value="gif"
+                  checked={selectedType() === 'gif'}
                   onChange={() => setSelectedType('gif')}
-                  class="sr-only" 
+                  class="sr-only"
                 />
                 <span>GIF</span>
               </label>
             </div>
           </div>
-          
+
           <div>
             <input type="hidden" name="content" value={content()} />
-            
+
             <Show when={selectedType() === 'markdown'}>
               <MarkdownEditor onChange={setContent} />
             </Show>
-            
+
             <Show when={selectedType() === 'audio'}>
               <FileUploader type="audio" onFileSelect={(file) => {
                 if (typeof file === 'string') {
@@ -160,7 +156,7 @@ export const CreatePostForm: Component = () => {
                 }
               }} />
             </Show>
-            
+
             <Show when={selectedType() === 'video'}>
               <FileUploader type="video" onFileSelect={(file) => {
                 if (typeof file === 'string') {
@@ -168,7 +164,7 @@ export const CreatePostForm: Component = () => {
                 }
               }} />
             </Show>
-            
+
             <Show when={selectedType() === 'gif'}>
               <FileUploader type="gif" onFileSelect={(file) => {
                 if (typeof file === 'string') {
@@ -177,11 +173,11 @@ export const CreatePostForm: Component = () => {
               }} />
             </Show>
           </div>
-          
+
           <Show when={creating.error}>
             <p class="text-sm text-red-600">{creating.error}</p>
           </Show>
-          
+
           <Show when={creating.result?.success}>
             <div class="bg-green-50 border border-green-200 rounded-md p-4">
               <div class="flex">
@@ -198,7 +194,7 @@ export const CreatePostForm: Component = () => {
               </div>
             </div>
           </Show>
-          
+
           <div class="flex justify-end">
             <button
               type="submit"

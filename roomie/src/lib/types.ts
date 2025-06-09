@@ -5,6 +5,7 @@ export type User = {
   bio: string;
   avatarUrl: string;
   createdAt: string;
+  email?: string;
 };
 
 export type PostType = 'markdown' | 'audio' | 'video' | 'gif';

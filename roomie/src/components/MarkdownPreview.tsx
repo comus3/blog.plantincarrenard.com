@@ -8,7 +8,7 @@ type MarkdownPreviewProps = {
 export const MarkdownPreview: Component<MarkdownPreviewProps> = (props) => {
   return (
     <div class="markdown-preview prose prose-sm max-w-none">
-      <SolidMarkdown children={props.markdown} />
+      <SolidMarkdown>{props.markdown}</SolidMarkdown>
     </div>
   );
 };

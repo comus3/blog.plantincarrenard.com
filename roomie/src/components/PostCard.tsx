@@ -1,4 +1,4 @@
-import { A } from "solid-start";
+import { A } from "@solidjs/router";
 import { Show, Switch, Match } from "solid-js";
 import { PostWithAuthor } from "~/lib/types";
 import { formatDate } from "~/lib/utils";
