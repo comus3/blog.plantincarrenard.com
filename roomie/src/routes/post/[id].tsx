@@ -27,7 +27,6 @@ export default function PostDetail() {
     async (id) => {
       try {
         const result = await getPost(id);
-        console.log('getPost result:', result);
         return result;
       } catch (error) {
         console.error('Error fetching post:', error);

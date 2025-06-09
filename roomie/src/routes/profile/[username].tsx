@@ -3,11 +3,11 @@
 import { useParams } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
 import { createAsync, cache } from "@solidjs/router";
-import { For, Show, Suspense } from "solid-js";
+import { For, Show, Suspense, createMemo, createEffect } from "solid-js";
 import { PostCard } from "~/components/PostCard";
 import { CreatePostForm } from "~/components/CreatePostForm";
 import { User, PostWithAuthor } from "~/lib/types";
-import { getCurrentUser } from "~/lib/auth"; // Import your actual auth function
+import { getCurrentUser } from "~/lib/auth"; 
 
 // Cache functions for server-side data fetching
 const getUser = cache(async (username: string): Promise<User | null> => {
@@ -55,20 +55,45 @@ const getUserPosts = cache(async (authorId: string): Promise<PostWithAuthor[]> =
 export default function Profile() {
   const params = useParams();
   
-  // Reactive data fetching
-  const user = createAsync(() => getUser(params.username));
-  const posts = createAsync(() => {
-    const userData = user();
-    return userData ? getUserPosts(userData.id) : Promise.resolve([]);
-  });
+  // Create reactive username signal that properly tracks param changes
+  const username = createMemo(() => params.username);
+  
+  // Fetch current user first (this doesn't depend on params)
   const currentUser = createAsync(() => getCurrentUser());
   
+  // Reactive data fetching with proper dependency tracking
+  const user = createAsync(() => {
+    const currentUsername = username();
+    if (!currentUsername) return Promise.resolve(null);
+    
+    console.log('Fetching user for:', currentUsername);
+    return getUser(currentUsername);
+  });
+  
+  const posts = createAsync(() => {
+    const userData = user();
+    if (!userData?.id) return Promise.resolve([]);
+    
+    console.log('Fetching posts for user ID:', userData.id);
+    return getUserPosts(userData.id);
+  });
+  
   // Check if this profile belongs to the current user
-  const isCurrentUser = () => {
+  const isCurrentUser = createMemo(() => {
     const current = currentUser();
     const profileUser = user();
-    return current && profileUser && current.username === profileUser.username;
-  };
+    return !!(current && profileUser && current.username === profileUser.username);
+  });
+
+  // Debug effect to track state changes
+  createEffect(() => {
+    console.log('Profile state update:', {
+      username: username(),
+      userLoaded: !!user(),
+      postsCount: posts()?.length || 0,
+      isCurrentUser: isCurrentUser()
+    });
+  });
 
   // Format date helper
   const formatJoinDate = (dateString: string) => {
@@ -85,9 +110,10 @@ export default function Profile() {
   
   return (
     <>
-      <Title>{user()?.displayName || 'User'} | Profile</Title>
+      <Title>{user()?.displayName || username() || 'User'} | Profile</Title>
       
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* User Profile Section */}
         <Suspense fallback={
           <div class="animate-pulse pt-8 pb-6">
             <div class="flex items-center">
@@ -106,7 +132,7 @@ export default function Profile() {
             fallback={
               <div class="py-12 text-center">
                 <h1 class="text-2xl font-bold text-gray-900 mb-4">User not found</h1>
-                <p class="text-gray-600">The user "{params.username}" does not exist.</p>
+                <p class="text-gray-600">The user "{username()}" does not exist.</p>
               </div>
             }
           >
@@ -133,13 +159,14 @@ export default function Profile() {
                 </Show>
                 
                 <p class="mt-2 text-sm text-gray-500">
-                  Joined on {formatJoinDate(userData().createdAt)}
+                  Joined on {formatJoinDate(new Date(userData().createdAt).toISOString())}
                 </p>
               </div>
             )}
           </Show>
         </Suspense>
         
+        {/* Create Post Form - only show for current user */}
         <Show when={isCurrentUser()}>
           <div class="my-8 border-t border-gray-200 pt-8">
             <h2 class="text-lg font-medium text-gray-900 mb-4">Create New Post</h2>
@@ -147,32 +174,34 @@ export default function Profile() {
           </div>
         </Show>
         
+        {/* Posts Section */}
         <div class="pb-12">
           <div class="border-t border-gray-200 pt-8">
             <h2 class="text-xl font-bold text-gray-900 mb-6">
-              {isCurrentUser() ? 'Your Posts' : `${user()?.displayName}'s Posts`}
+              {isCurrentUser() ? 'Your Posts' : `${user()?.displayName || username()}'s Posts`}
             </h2>
             
             <Suspense fallback={
               <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {Array(6).fill(0).map((_, i) => (
-                  <div class="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
-                    <div class="p-5">
-                      <div class="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
-                      <div class="flex items-center mb-4">
-                        <div class="h-6 w-6 rounded-full bg-gray-200 mr-2"></div>
-                        <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                <For each={Array(6).fill(0)}>
+                  {(_, i) => (
+                    <div class="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+                      <div class="p-5">
+                        <div class="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                        <div class="flex items-center mb-4">
+                          <div class="h-6 w-6 rounded-full bg-gray-200 mr-2"></div>
+                          <div class="h-4 bg-gray-200 rounded w-1/3"></div>
+                        </div>
+                        <div class="space-y-2 mb-4">
+                          <div class="h-4 bg-gray-200 rounded w-full"></div>
+                          <div class="h-4 bg-gray-200 rounded w-full"></div>
+                          <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+                        </div>
+                        <div class="h-4 bg-gray-200 rounded w-20"></div>
                       </div>
-                      <div class="space-y-2 mb-4">
-                        <div class="h-4 bg-gray-200 rounded w-full"></div>
-                        <div class="h-4 bg-gray-200 rounded w-full"></div>
-                        <div class="h-4 bg-gray-200 rounded w-2/3"></div>
-                      </div>
-                      <div class="h-4 bg-gray-200 rounded w-20"></div>
                     </div>
-                  </div>
-                ))}
-
+                  )}
+                </For>
               </div>
             }>
               <Show
@@ -189,7 +218,7 @@ export default function Profile() {
                       <p class="text-gray-500">
                         {isCurrentUser() 
                           ? "You haven't created any posts yet. Use the form above to share your first post!" 
-                          : `${user()?.displayName} hasn't shared any posts yet.`}
+                          : `${user()?.displayName || username()} hasn't shared any posts yet.`}
                       </p>
                     </div>
                   </div>
