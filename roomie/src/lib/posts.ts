@@ -1,7 +1,9 @@
 // src/lib/posts.ts
+import { action, cache, revalidate } from "@solidjs/router";
 import { db } from './db';
 import { z } from 'zod';
 import type { Post, PostWithAuthor, PostType, User } from './types';
+
 
 // Validation schemas
 export const createPostSchema = z.object({
@@ -25,7 +27,9 @@ function transformUser(prismaUser: any): User {
     displayName: prismaUser.displayName,
     bio: prismaUser.bio,
     avatarUrl: prismaUser.avatarUrl,
-    createdAt: prismaUser.createdAt.toISOString(),
+    createdAt: prismaUser.createdAt,
+    email: prismaUser.email , 
+    password: prismaUser.password, 
   };
 }
 
@@ -36,8 +40,8 @@ function transformPost(prismaPost: any): Post {
     content: prismaPost.content,
     contentType: prismaPost.contentType as PostType,
     authorId: prismaPost.authorId,
-    createdAt: prismaPost.createdAt.toISOString(),
-    updatedAt: prismaPost.updatedAt.toISOString(),
+    createdAt: new Date(prismaPost.createdAt),
+    updatedAt: new Date(prismaPost.updatedAt),
   };
 }
 
@@ -48,6 +52,7 @@ function transformPostWithAuthor(prismaPost: any): PostWithAuthor {
   };
 }
 
+// Database functions (keeping your existing ones)
 export async function createPost(data: z.infer<typeof createPostSchema>): Promise<Post> {
   const validatedData = createPostSchema.parse(data);
   
@@ -120,8 +125,8 @@ export async function searchPosts(query: string, limit?: number): Promise<PostWi
   const posts = await db.post.findMany({
     where: {
       OR: [
-        { title: { contains: query, mode: 'insensitive' } },
-        { content: { contains: query, mode: 'insensitive' } },
+        { title: { contains: query } },
+        { content: { contains: query } },
       ],
     },
     include: { author: true },
@@ -131,3 +136,151 @@ export async function searchPosts(query: string, limit?: number): Promise<PostWi
   
   return posts.map(transformPostWithAuthor);
 }
+
+// SolidJS Router cache functions
+export const getPosts = cache(async (search?: string, limit?: number): Promise<PostWithAuthor[]> => {
+  "use server";
+  try {
+    if (search) {
+      return await searchPosts(search, limit);
+    }
+    return await getAllPosts(limit);
+  } catch (error) {
+    console.error('Error fetching posts:', error);
+    return [];
+  }
+}, "posts");
+
+export const getUserPosts = cache(async (authorId: string, limit?: number): Promise<PostWithAuthor[]> => {
+  "use server";
+  try {
+    return await getPostsByAuthor(authorId, limit);
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
+    return [];
+  }
+}, "user-posts");
+
+export const getPost = cache(async (id: string): Promise<PostWithAuthor | null> => {
+  "use server";
+  try {
+    return await getPostById(id);
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    return null;
+  }
+}, "post");
+
+export const getPostsByType = cache(async (contentType: PostType, limit?: number): Promise<PostWithAuthor[]> => {
+  "use server";
+  try {
+    return await getPostsByContentType(contentType, limit);
+  } catch (error) {
+    console.error('Error fetching posts by type:', error);
+    return [];
+  }
+}, "posts-by-type");
+
+// SolidJS Router actions
+export const createPostAction = action(async (formData: FormData) => {
+  "use server";
+  
+  const title = formData.get("title")?.toString() || "";
+  const contentType = formData.get("contentType")?.toString() as PostType;
+  const content = formData.get("content")?.toString() || "";
+  const authorId = formData.get("authorId")?.toString() || "";
+
+  try {
+    // Validate the input using your existing schema
+    const validatedData = createPostSchema.parse({ 
+      title, 
+      contentType, 
+      content, 
+      authorId 
+    });
+
+    // Create the post using your existing function
+    const newPost = await createPost(validatedData);
+    
+    // Invalidate relevant caches
+    revalidate("posts");
+    revalidate("user-posts");
+    revalidate("posts-by-type");
+    
+    return { success: true, post: newPost };
+  } catch (error) {
+    console.error('Error creating post:', error);
+    
+    if (error instanceof z.ZodError) {
+      return { error: error.errors[0].message };
+    }
+    
+    return { error: 'Failed to create post. Please try again.' };
+  }
+});
+
+export const updatePostAction = action(async (formData: FormData) => {
+  "use server";
+  
+  const id = formData.get("id")?.toString() || "";
+  const title = formData.get("title")?.toString();
+  const content = formData.get("content")?.toString();
+  const contentType = formData.get("contentType")?.toString() as PostType;
+
+  if (!id) {
+    return { error: "Post ID is required" };
+  }
+
+  try {
+    const updateData: any = {};
+    if (title) updateData.title = title;
+    if (content) updateData.content = content;
+    if (contentType) updateData.contentType = contentType;
+
+    // Update the post using your existing function
+    const updatedPost = await updatePost(id, updateData);
+    
+    // Invalidate relevant caches
+    revalidate("posts");
+    revalidate("user-posts");
+    revalidate("post");
+    revalidate("posts-by-type");
+    
+    return { success: true, post: updatedPost };
+  } catch (error) {
+    console.error('Error updating post:', error);
+    
+    if (error instanceof z.ZodError) {
+      return { error: error.errors[0].message };
+    }
+    
+    return { error: 'Failed to update post. Please try again.' };
+  }
+});
+
+export const deletePostAction = action(async (id: string) => {
+  "use server";
+  
+  try {
+    // Get the post first to know which caches to revalidate
+    const post = await getPostById(id);
+    
+    if (!post) {
+      return { error: 'Post not found' };
+    }
+
+    // Delete the post using your existing function
+    await deletePost(id);
+    
+    // Invalidate relevant caches
+    revalidate("posts");
+    revalidate("user-posts");
+    revalidate("post");
+    revalidate("posts-by-type");
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    return { error: 'Failed to delete post. Please try again.' };
+  }
+});

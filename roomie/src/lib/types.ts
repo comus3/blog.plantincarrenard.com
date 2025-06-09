@@ -1,11 +1,14 @@
+// src/lib/types.ts
+
 export type User = {
   id: string;
   username: string;
   displayName: string;
   bio: string;
   avatarUrl: string;
-  createdAt: string;
-  email?: string;
+  createdAt: Date;
+  email: string;
+  password: string; 
 };
 
 export type PostType = 'markdown' | 'audio' | 'video' | 'gif';
@@ -16,8 +19,8 @@ export type Post = {
   content: string;
   contentType: PostType;
   authorId: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type PostWithAuthor = Post & {

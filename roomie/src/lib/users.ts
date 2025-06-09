@@ -27,7 +27,9 @@ function transformUser(prismaUser: any): User {
     displayName: prismaUser.displayName,
     bio: prismaUser.bio,
     avatarUrl: prismaUser.avatarUrl,
-    createdAt: prismaUser.createdAt.toISOString(),
+    createdAt: new Date(prismaUser.createdAt),
+    email: prismaUser.email || '',
+    password: prismaUser.password, 
   };
 }
 
