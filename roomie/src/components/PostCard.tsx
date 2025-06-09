@@ -1,7 +1,8 @@
+// src/components/PostCard.tsx
+
 import { A } from "@solidjs/router";
 import { Show, Switch, Match } from "solid-js";
 import { PostWithAuthor } from "~/lib/types";
-import { formatDate } from "~/lib/utils";
 import { MarkdownPreview } from "./MarkdownPreview";
 
 type PostCardProps = {
@@ -12,6 +13,27 @@ type PostCardProps = {
 
 export function PostCard(props: PostCardProps) {
   const { post } = props;
+  
+  // Safe date formatting function
+  const formatDate = (date: Date | string) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) {
+        return 'Invalid date';
+      }
+      
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(dateObj);
+    } catch (error) {
+      console.warn('Date formatting error:', error);
+      return 'Invalid date';
+    }
+  };
   
   // Get a shorter preview for markdown posts
   const getMarkdownPreview = (content: string) => {
@@ -43,11 +65,27 @@ export function PostCard(props: PostCardProps) {
         <Show when={props.showAuthor !== false}>
           <div class="flex items-center mb-4">
             <A href={`/explore/${post.author.username}`} class="flex items-center group">
-              <img 
-                src={post.author.avatarUrl} 
-                alt={post.author.displayName}
-                class="h-6 w-6 rounded-full mr-2 object-cover"
-              />
+              <Show 
+                when={post.author.avatarUrl} 
+                fallback={
+                  <div class="h-6 w-6 rounded-full mr-2 bg-gray-300 flex items-center justify-center">
+                    <span class="text-xs text-gray-600 font-medium">
+                      {post.author.displayName.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                }
+              >
+                <img 
+                  src={post.author.avatarUrl} 
+                  alt={post.author.displayName}
+                  class="h-6 w-6 rounded-full mr-2 object-cover"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                />
+              </Show>
               <span class="text-sm text-gray-700 group-hover:text-primary-600 transition-colors">
                 {post.author.displayName}
               </span>
@@ -59,11 +97,9 @@ export function PostCard(props: PostCardProps) {
           <Switch>
             <Match when={post.contentType === 'markdown'}>
               <div class="prose prose-sm max-h-40 overflow-hidden">
-                {props.preview ? (
+                <Show when={props.preview} fallback={<MarkdownPreview markdown={post.content} />}>
                   <p class="text-gray-600 line-clamp-3">{getMarkdownPreview(post.content)}</p>
-                ) : (
-                  <MarkdownPreview markdown={post.content} />
-                )}
+                </Show>
               </div>
             </Match>
             
@@ -72,6 +108,7 @@ export function PostCard(props: PostCardProps) {
                 controls
                 src={post.content}
                 class="w-full rounded-md"
+                preload="metadata"
               >
                 Your browser does not support the audio element.
               </audio>
@@ -82,6 +119,7 @@ export function PostCard(props: PostCardProps) {
                 controls
                 src={post.content}
                 class="w-full h-48 rounded-md object-cover"
+                preload="metadata"
               >
                 Your browser does not support the video element.
               </video>
@@ -102,7 +140,7 @@ export function PostCard(props: PostCardProps) {
         
         <A 
           href={`/post/${post.id}`} 
-          class="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700"
+          class="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
         >
           Read more
           <svg class="ml-1 w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
