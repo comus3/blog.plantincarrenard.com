@@ -1,119 +1,219 @@
-# **blog.plantincarrenard.com**
+# SolidJS Blog API Documentation
 
-**A New Vision for Old Concepts**
-This project is a SolidJS-based blog platform that reimagines personal and community interaction through customizable, immersive digital rooms.
+This document outlines all API routes, their inputs, outputs, and usage patterns for the SolidJS blog application.
 
----
+## Base URL
+- Development: `http://localhost:3000`
+- Production: Use `process.env.API_URL` environment variable
 
-## **Project Vision**
+## User Routes
 
-This platform is not just a blog. It introduces **interactive personal spaces**, each rendered as a static side-view of a room. These rooms contain:
+### GET /api/users
+**Description:** Get all users
+**Parameters:** None
+**Response:**
+```typescript
+User[]
 
-* A **computer** (access to blog posts and videos)
-* A **music device** (user-curated or linked music)
-* A **library** (documents, notes, and articles)
-* A **poster** (canvas for drawings, post-its, images)
-
-Users can fully customize the wall, desk, and other elements of their room with textures and colors. These rooms are **explorable** by other users.
-
-Cross-content linkage is possible: e.g., a blog post might reference music or a document in the library.
-
----
-
-## **Requirements**
-
-* Fully polished and responsive UI
-* Pages must load and function fully without client-side JavaScript
-* Full functionality must be accessible without client-side JS
-* Client and server-side data validation
-* Suspense + error boundaries for data fetching
-* Form submissions must support revalidation
-* Network performance: caching, preloading, avoiding waterfalls
-* Secure, typed authentication and communication
-* Fully type-safe codebase
-* Strong component-based architecture
-* AI-generated code must be clean and reviewed
-* High architectural and functional complexity
-
----
-
-## **Modules Overview**
-
-### 1. Room Renderer
-
-* Static rendering of wall, desk, and objects
-* Texture and object state control
-* Future: canvas-based real-time editing
-
-### 2. Content Interfaces
-
-* Markdown-based blog engine with media support
-* Music uploads or embeds (YouTube, Spotify)
-* Document + note storage
-
-### 3. Interaction System
-
-* SVG/Canvas mapping for object interaction
-* Drag and drop for poster area
-* Note/image placement and manipulation
-
-### 4. User Customization
-
-* Customizable textures and layout saved persistently
-* Room metadata stored in the database
-
----
-
-## **Architecture**
-
-###  Stack
-
-* **Frontend**: [SolidStart](https://start.solidjs.com) with full SSR
-* **Styling**: TailwindCSS
-* **Backend ORM**: Prisma
-* **Database**: PostgreSQL (or SQLite for development)
-* **Authentication**: [Lucia](https://lucia-auth.com/)
-* **Validation**: Zod
-* **Markdown Parsing**: `marked`, `contentlayer`, or custom renderer
-* **Storage**: Local or S3-compatible (TBD)
-* **Image/Canvas**: Native Canvas API or SVG rendering
-
----
-
-###  File & Component Architecture
-
-* `routes/`: SolidStart route-based SSR pages
-* `components/`: Reusable UI elements (Room, Poster, BlogList, etc.)
-* `lib/`: Shared utilities and hooks
-* `server/`: Prisma handlers, DB logic, auth
-* `styles/`: Tailwind config + custom theming
-* `assets/`: Default room assets and textures
-
----
-
-###  Prisma Data Models
-
-```prisma
-model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  username    String   @unique
-  hashedPass  String
-  rooms       Room[]
-  createdAt   DateTime @default(now())
-}
-
-model Room {
-  id          String   @id @default(cuid())
-  ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id])
-  name        String
-  config      Json     // wall/desk/object styles
-  posterItems Json     // notes, images, post-its
-  musicLinks  Json     // links to music assets
-  library     Json     // list of docs
-  createdAt   DateTime @default(now())
+// User type:
+{
+  id: string;
+  username: string;
+  email: string;
+  displayName: string;
+  bio?: string;
+  avatarUrl?: string;
+  createdAt: Date;
 }
 ```
 
+### POST /api/users
+**Description:** Create a new user
+**Body:**
+```typescript
+{
+  username: string;
+  email: string;
+  displayName: string;
+  bio?: string;
+  avatarUrl?: string;
+}
+```
+**Response:** `User` (201) or error (400/409)
+**Error Codes:**
+- 409: Username already exists
+- 400: Validation error
 
+### GET /api/users/[id]
+**Description:** Get user by ID
+**Parameters:** 
+- `id`: string (URL parameter)
+**Response:** `User` (200) or error (404/500)
+
+### PUT /api/users/[id]
+**Description:** Update user by ID
+**Parameters:**
+- `id`: string (URL parameter)
+**Body:** Partial `User` object
+**Response:** `User` (200) or error (400/404)
+
+### DELETE /api/users/[id]
+**Description:** Delete user by ID
+**Parameters:**
+- `id`: string (URL parameter)
+**Response:** `{ success: true }` (200) or error (404/500)
+
+### GET /api/users/username/[username]
+**Description:** Get user by username
+**Parameters:**
+- `username`: string (URL parameter)
+**Response:** `User` (200) or error (404/500)
+
+## Post Routes
+
+### GET /api/posts
+**Description:** Get all posts with optional filtering
+**Query Parameters:**
+- `limit?: number` - Limit number of results
+- `search?: string` - Search posts by content
+- `type?: 'markdown' | 'audio' | 'video' | 'gif'` - Filter by content type
+**Response:**
+```typescript
+PostWithAuthor[]
+
+// PostWithAuthor type:
+{
+  id: string;
+  title: string;
+  content: string;
+  contentType: 'markdown' | 'audio' | 'video' | 'gif';
+  authorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl?: string;
+  };
+}
+```
+
+### POST /api/posts
+**Description:** Create a new post
+**Body:**
+```typescript
+{
+  title: string;
+  content: string;
+  contentType: 'markdown' | 'audio' | 'video' | 'gif';
+  authorId: string;
+}
+```
+**Response:** `PostWithAuthor` (201) or error (400)
+**Error Codes:**
+- 400: Author not found or validation error
+
+### GET /api/posts/[id]
+**Description:** Get post by ID
+**Parameters:**
+- `id`: string (URL parameter)
+**Response:** `PostWithAuthor` (200) or error (404/500)
+
+### PUT /api/posts/[id]
+**Description:** Update post by ID
+**Parameters:**
+- `id`: string (URL parameter)
+**Body:** Partial post object (excluding `id`, `authorId`, `createdAt`)
+**Response:** `PostWithAuthor` (200) or error (400/404)
+
+### DELETE /api/posts/[id]
+**Description:** Delete post by ID
+**Parameters:**
+- `id`: string (URL parameter)
+**Response:** `{ success: true }` (200) or error (404/500)
+
+### GET /api/posts/author/[authorId]
+**Description:** Get posts by author ID
+**Parameters:**
+- `authorId`: string (URL parameter)
+**Query Parameters:**
+- `limit?: number` - Limit number of results
+**Response:** `PostWithAuthor[]` (200) or error (500)
+
+## Important Notes
+
+### Error Response Format
+All error responses follow this format:
+```typescript
+{
+  error: string; // Human-readable error message
+}
+```
+
+### Date Handling
+- All dates are returned as ISO strings from the API
+- Convert to Date objects in your frontend code: `new Date(dateString)`
+
+### Content Types
+The `contentType` field supports these values:
+- `'markdown'` - Regular text/markdown posts
+- `'audio'` - Audio content posts
+- `'video'` - Video content posts  
+- `'gif'` - GIF/image posts
+
+### Common HTTP Status Codes
+- `200` - Success
+- `201` - Created successfully
+- `400` - Bad request (validation error)
+- `404` - Resource not found
+- `409` - Conflict (duplicate resource)
+- `500` - Internal server error
+
+### Usage Patterns in Components
+
+#### Fetching User by Username
+```typescript
+const getUser = cache(async (username: string): Promise<User | null> => {
+  "use server";
+  const apiUrl = process.env.API_URL || 'http://localhost:3000';
+  const response = await fetch(`${apiUrl}/api/users/username/${username}`);
+  if (!response.ok) return null;
+  return await response.json();
+}, "user");
+```
+
+#### Fetching Posts by Author
+```typescript
+const getUserPosts = cache(async (authorId: string): Promise<PostWithAuthor[]> => {
+  "use server";
+  const apiUrl = process.env.API_URL || 'http://localhost:3000';
+  const response = await fetch(`${apiUrl}/api/posts/author/${authorId}`);
+  if (!response.ok) return [];
+  return await response.json();
+}, "user-posts");
+```
+
+#### Fetching All Posts with Search
+```typescript
+const getPosts = cache(async (search?: string): Promise<PostWithAuthor[]> => {
+  "use server";
+  const apiUrl = process.env.API_URL || 'http://localhost:3000';
+  const url = search 
+    ? `${apiUrl}/api/posts?search=${encodeURIComponent(search)}`
+    : `${apiUrl}/api/posts`;
+  const response = await fetch(url);
+  if (!response.ok) return [];
+  return await response.json();
+}, "posts");
+```
+
+## Key Route Corrections for Profile Component
+
+Based on your actual API routes, the profile component should use:
+- **User by username:** `/api/users/username/${username}` 
+- **Posts by author:** `/api/posts/author/${authorId}` (requires user ID, not username)
+
+Note: To get posts by username, you'll need to:
+1. First fetch the user by username to get their ID
+2. Then fetch posts using the author ID
