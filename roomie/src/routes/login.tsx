@@ -1,15 +1,16 @@
 // src/routes/login.tsx
 
 import { createSignal, Show, createEffect } from 'solid-js'
-import { loginAction, getCurrentUser } from '../lib/auth'
-import { A, useAction, useSubmission } from '@solidjs/router'
-import { createAsync } from '@solidjs/router'
+import { loginAction } from '../lib/auth'
+import { A, useAction, useSubmission, useNavigate } from '@solidjs/router'
+import { useAuth } from '../components/AuthProvider'
 
 export default function Login() {
   const [error, setError] = createSignal<string>('')
   const loginActionHandler = useAction(loginAction)
   const loginSubmission = useSubmission(loginAction)
-  const user = createAsync(() => getCurrentUser())
+  const navigate = useNavigate()
+  const { user, refetch } = useAuth()
 
   // Handle submission results
   createEffect(() => {
@@ -22,6 +23,10 @@ export default function Login() {
       const result = loginSubmission.result as any
       if (result.error) {
         setError(result.error)
+      } else {
+        // Success case - refresh auth and navigate
+        refetch()
+        navigate('/')
       }
     }
   })
@@ -29,7 +34,7 @@ export default function Login() {
   // Redirect if already logged in
   createEffect(() => {
     if (user()) {
-      window.location.href = '/'
+      navigate('/')
     }
   })
 
@@ -40,8 +45,21 @@ export default function Login() {
     const form = e.target as HTMLFormElement
     const formData = new FormData(form)
     
-    // Just call the action - don't try/catch here
-    await loginActionHandler(formData)
+    try {
+      // Call the action
+      const result = await loginActionHandler(formData)
+      
+      // If no error was returned, assume success
+      if (!result || !('error' in result)) {
+        // Manually refresh auth state and navigate
+        refetch()
+        navigate('/')
+      }
+    } catch (redirectError) {
+      // If it's a redirect (successful login), refresh auth
+      console.log('Login redirect caught, refreshing auth...')
+      refetch()
+    }
   }
 
   return (
