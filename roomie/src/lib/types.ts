@@ -23,6 +23,22 @@ export type Post = {
   updatedAt: Date;
 };
 
-export type PostWithAuthor = Post & {
-  author: User;
-};
+export interface PostWithAuthor {
+  id: string;
+  title: string;
+  content: string;
+  contentType: 'markdown' | 'audio' | 'video' | 'gif';
+  authorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    bio?: string;
+    avatarUrl?: string;
+    createdAt: Date;
+    email: string;
+    password: string;
+  };
+}
