@@ -1,219 +1,292 @@
-# SolidJS Blog API Documentation
+# SolidStart API Routes Documentation
 
-This document outlines all API routes, their inputs, outputs, and usage patterns for the SolidJS blog application.
+This documentation covers the API routes in your SolidStart application, which follows file-based routing conventions. These routes work in both SSR and SPA modes, providing RESTful endpoints for managing users and posts.
 
-## Base URL
-- Development: `http://localhost:3000`
-- Production: Use `process.env.API_URL` environment variable
+## Route Structure Overview
 
-## User Routes
+SolidStart uses file-based routing where files in the `src/routes` directory automatically become routes. API routes are placed in the `api` folder and export HTTP method functions (GET, POST, PUT, DELETE) that handle requests server-side.
+
+## Users API Routes
 
 ### GET /api/users
-**Description:** Get all users
-**Parameters:** None
-**Response:**
-```typescript
-User[]
 
-// User type:
-{
-  id: string;
-  username: string;
-  email: string;
-  displayName: string;
-  bio?: string;
-  avatarUrl?: string;
-  createdAt: Date;
-}
+**Purpose**: Retrieve all users from the database
+
+**Usage**:
+```javascript
+// Client-side fetch
+const response = await fetch('/api/users');
+const users = await response.json();
 ```
+
+**Response**:
+- Success: Array of user objects with 200 status
+- Error: `{ error: 'Failed to fetch users' }` with 500 status
+
+**Expected Behavior**: Returns a complete list of all users in the system. No pagination or filtering is currently implemented.
+
+---
 
 ### POST /api/users
-**Description:** Create a new user
-**Body:**
-```typescript
-{
-  username: string;
-  email: string;
-  displayName: string;
-  bio?: string;
-  avatarUrl?: string;
-}
+
+**Purpose**: Create a new user
+
+**Usage**:
+```javascript
+const response = await fetch('/api/users', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    username: 'newuser',
+    email: 'user@example.com',
+    // other user fields
+  })
+});
+const user = await response.json();
 ```
-**Response:** `User` (201) or error (400/409)
-**Error Codes:**
-- 409: Username already exists
-- 400: Validation error
+
+**Response**:
+- Success: Created user object with 201 status
+- Username conflict: `{ error: 'Username already exists' }` with 409 status
+- Other errors: `{ error: 'Failed to create user' }` with 400 status
+
+**Expected Behavior**: Creates a new user with validation. Handles unique constraint violations for usernames gracefully.
+
+---
 
 ### GET /api/users/[id]
-**Description:** Get user by ID
-**Parameters:** 
-- `id`: string (URL parameter)
-**Response:** `User` (200) or error (404/500)
+
+**Purpose**: Retrieve a specific user by ID
+
+**Usage**:
+```javascript
+const response = await fetch('/api/users/123');
+const user = await response.json();
+```
+
+**Parameters**:
+- `id`: User ID from the URL path
+
+**Response**:
+- Success: User object with 200 status
+- Not found: `{ error: 'User not found' }` with 404 status
+- Error: `{ error: 'Failed to fetch user' }` with 500 status
+
+**Expected Behavior**: Returns detailed information for a single user. Handles non-existent users appropriately.
+
+---
 
 ### PUT /api/users/[id]
-**Description:** Update user by ID
-**Parameters:**
-- `id`: string (URL parameter)
-**Body:** Partial `User` object
-**Response:** `User` (200) or error (400/404)
+
+**Purpose**: Update an existing user
+
+**Usage**:
+```javascript
+const response = await fetch('/api/users/123', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'newemail@example.com',
+    // fields to update
+  })
+});
+const updatedUser = await response.json();
+```
+
+**Parameters**:
+- `id`: User ID from the URL path
+- Request body: JSON object with fields to update
+
+**Response**:
+- Success: Updated user object with 200 status
+- Not found: `{ error: 'User not found' }` with 404 status
+- Error: `{ error: 'Failed to update user' }` with 400 status
+
+**Expected Behavior**: Updates existing user data. Uses Prisma error codes to provide specific error messages.
+
+---
 
 ### DELETE /api/users/[id]
-**Description:** Delete user by ID
-**Parameters:**
-- `id`: string (URL parameter)
-**Response:** `{ success: true }` (200) or error (404/500)
+
+**Purpose**: Delete a user
+
+**Usage**:
+```javascript
+const response = await fetch('/api/users/123', {
+  method: 'DELETE'
+});
+const result = await response.json();
+```
+
+**Parameters**:
+- `id`: User ID from the URL path
+
+**Response**:
+- Success: `{ success: true }` with 200 status
+- Not found: `{ error: 'User not found' }` with 404 status
+- Error: `{ error: 'Failed to delete user' }` with 500 status
+
+**Expected Behavior**: Permanently removes a user from the database. Consider implementing soft deletes for production applications.
+
+---
 
 ### GET /api/users/username/[username]
-**Description:** Get user by username
-**Parameters:**
-- `username`: string (URL parameter)
-**Response:** `User` (200) or error (404/500)
 
-## Post Routes
+**Purpose**: Retrieve a user by their username
+
+**Usage**:
+```javascript
+const response = await fetch('/api/users/username/johndoe');
+const user = await response.json();
+```
+
+**Parameters**:
+- `username`: Username from the URL path
+
+**Response**:
+- Success: User object with 200 status
+- Not found: `{ error: 'User not found' }` with 404 status
+- Error: `{ error: 'Failed to fetch user' }` with 500 status
+
+**Expected Behavior**: Alternative way to fetch users when you have their username instead of ID. Useful for profile pages and user lookup.
+
+## Posts API Routes
 
 ### GET /api/posts
-**Description:** Get all posts with optional filtering
-**Query Parameters:**
-- `limit?: number` - Limit number of results
-- `search?: string` - Search posts by content
-- `type?: 'markdown' | 'audio' | 'video' | 'gif'` - Filter by content type
-**Response:**
-```typescript
-PostWithAuthor[]
 
-// PostWithAuthor type:
-{
-  id: string;
-  title: string;
-  content: string;
-  contentType: 'markdown' | 'audio' | 'video' | 'gif';
-  authorId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  author: {
-    id: string;
-    username: string;
-    displayName: string;
-    avatarUrl?: string;
-  };
-}
+**Purpose**: Retrieve posts with optional filtering and searching
+
+**Usage**:
+```javascript
+// Get all posts
+const response = await fetch('/api/posts');
+
+// Get limited number of posts
+const response = await fetch('/api/posts?limit=10');
+
+// Search posts
+const response = await fetch('/api/posts?search=javascript');
+
+// Filter by content type
+const response = await fetch('/api/posts?type=markdown');
 ```
+
+**Query Parameters**:
+- `limit`: Number of posts to return (optional)
+- `search`: Search term to filter posts (optional)
+- `type`: Content type filter (`markdown`, `audio`, `video`, `gif`)
+
+**Response**:
+- Success: Array of post objects with 200 status
+- Error: `{ error: 'Failed to fetch posts' }` with 500 status
+
+**Expected Behavior**: Flexible endpoint that handles multiple use cases. Uses dynamic imports for content type filtering to optimize bundle size.
+
+---
 
 ### POST /api/posts
-**Description:** Create a new post
-**Body:**
-```typescript
-{
-  title: string;
-  content: string;
-  contentType: 'markdown' | 'audio' | 'video' | 'gif';
-  authorId: string;
-}
+
+**Purpose**: Create a new post
+
+**Usage**:
+```javascript
+const response = await fetch('/api/posts', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    title: 'My New Post',
+    content: 'Post content here',
+    authorId: '123',
+    // other post fields
+  })
+});
+const post = await response.json();
 ```
-**Response:** `PostWithAuthor` (201) or error (400)
-**Error Codes:**
-- 400: Author not found or validation error
 
-### GET /api/posts/[id]
-**Description:** Get post by ID
-**Parameters:**
-- `id`: string (URL parameter)
-**Response:** `PostWithAuthor` (200) or error (404/500)
+**Response**:
+- Success: Created post object with 201 status
+- Invalid author: `{ error: 'Author not found' }` with 400 status
+- Other errors: `{ error: 'Failed to create post' }` with 400 status
 
-### PUT /api/posts/[id]
-**Description:** Update post by ID
-**Parameters:**
-- `id`: string (URL parameter)
-**Body:** Partial post object (excluding `id`, `authorId`, `createdAt`)
-**Response:** `PostWithAuthor` (200) or error (400/404)
+**Expected Behavior**: Creates a new post with proper validation. Handles foreign key constraints for author relationships.
 
-### DELETE /api/posts/[id]
-**Description:** Delete post by ID
-**Parameters:**
-- `id`: string (URL parameter)
-**Response:** `{ success: true }` (200) or error (404/500)
+---
 
 ### GET /api/posts/author/[authorId]
-**Description:** Get posts by author ID
-**Parameters:**
-- `authorId`: string (URL parameter)
-**Query Parameters:**
-- `limit?: number` - Limit number of results
-**Response:** `PostWithAuthor[]` (200) or error (500)
 
-## Important Notes
+**Purpose**: Retrieve all posts by a specific author
 
-### Error Response Format
-All error responses follow this format:
-```typescript
-{
-  error: string; // Human-readable error message
-}
+**Usage**:
+```javascript
+// Get all posts by author
+const response = await fetch('/api/posts/author/123');
+
+// Get limited posts by author
+const response = await fetch('/api/posts/author/123?limit=5');
 ```
 
-### Date Handling
-- All dates are returned as ISO strings from the API
-- Convert to Date objects in your frontend code: `new Date(dateString)`
+**Parameters**:
+- `authorId`: Author ID from the URL path
+- `limit`: Optional query parameter to limit results
 
-### Content Types
-The `contentType` field supports these values:
-- `'markdown'` - Regular text/markdown posts
-- `'audio'` - Audio content posts
-- `'video'` - Video content posts  
-- `'gif'` - GIF/image posts
+**Response**:
+- Success: Array of post objects with 200 status
+- Error: `{ error: 'Failed to fetch posts' }` with 500 status
 
-### Common HTTP Status Codes
-- `200` - Success
-- `201` - Created successfully
-- `400` - Bad request (validation error)
-- `404` - Resource not found
-- `409` - Conflict (duplicate resource)
-- `500` - Internal server error
+**Expected Behavior**: Returns posts filtered by author. Useful for author profile pages and user-specific content views.
 
-### Usage Patterns in Components
+## SolidStart Integration Notes
 
-#### Fetching User by Username
-```typescript
-const getUser = cache(async (username: string): Promise<User | null> => {
-  "use server";
-  const apiUrl = process.env.API_URL || 'http://localhost:3000';
-  const response = await fetch(`${apiUrl}/api/users/username/${username}`);
-  if (!response.ok) return null;
-  return await response.json();
-}, "user");
+### SSR/SPA Compatibility
+These API routes work seamlessly in both SSR and SPA modes:
+- **SSR Mode**: Routes execute on the server during initial page load
+- **SPA Mode**: Routes handle client-side API calls after hydration
+
+### Error Handling
+All routes implement consistent error handling:
+- Try-catch blocks around database operations
+- Specific error messages for common scenarios (not found, validation errors)
+- Proper HTTP status codes
+- Console logging for debugging
+
+### Type Safety
+Routes use TypeScript with proper typing:
+- `APIEvent` type for request handling
+- Proper parameter extraction from URLs
+- JSON parsing with error handling
+
+### Performance Considerations
+- Dynamic imports used for optional functionality (content type filtering)
+- Efficient database queries through the lib layer
+- Proper error boundaries to prevent crashes
+
+### Best Practices Followed
+- RESTful URL structure and HTTP methods
+- Consistent response format
+- Proper status codes
+- Database error code handling (Prisma-specific)
+- Separation of concerns with lib functions
+
+## Usage in Components
+
+```javascript
+import { createResource } from 'solid-js';
+
+// In a Solid component
+const [users] = createResource(async () => {
+  const response = await fetch('/api/users');
+  return response.json();
+});
+
+// For mutations
+const createUser = async (userData) => {
+  const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
+  });
+  return response.json();
+};
 ```
 
-#### Fetching Posts by Author
-```typescript
-const getUserPosts = cache(async (authorId: string): Promise<PostWithAuthor[]> => {
-  "use server";
-  const apiUrl = process.env.API_URL || 'http://localhost:3000';
-  const response = await fetch(`${apiUrl}/api/posts/author/${authorId}`);
-  if (!response.ok) return [];
-  return await response.json();
-}, "user-posts");
-```
-
-#### Fetching All Posts with Search
-```typescript
-const getPosts = cache(async (search?: string): Promise<PostWithAuthor[]> => {
-  "use server";
-  const apiUrl = process.env.API_URL || 'http://localhost:3000';
-  const url = search 
-    ? `${apiUrl}/api/posts?search=${encodeURIComponent(search)}`
-    : `${apiUrl}/api/posts`;
-  const response = await fetch(url);
-  if (!response.ok) return [];
-  return await response.json();
-}, "posts");
-```
-
-## Key Route Corrections for Profile Component
-
-Based on your actual API routes, the profile component should use:
-- **User by username:** `/api/users/username/${username}` 
-- **Posts by author:** `/api/posts/author/${authorId}` (requires user ID, not username)
-
-Note: To get posts by username, you'll need to:
-1. First fetch the user by username to get their ID
-2. Then fetch posts using the author ID
+These routes provide a solid foundation for a content management system with user authentication and post management capabilities, following SolidStart conventions and best practices.
