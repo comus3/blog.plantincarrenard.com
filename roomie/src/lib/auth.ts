@@ -3,8 +3,8 @@
 import { useSession } from 'vinxi/http'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
-import { action, query, redirect } from '@solidjs/router'
-import { cache } from '@solidjs/router'
+import { action, cache, redirect } from '@solidjs/router'
+import { createUser, getAllUsers, getUserById } from './users'
 
 // Session type definition
 type SessionData = {
@@ -35,8 +35,8 @@ export function getSession() {
   })
 }
 
-// Get current user from session
-export const getCurrentUser = query(async () => {
+// Get current user from session 
+export const getCurrentUser = cache(async () => {
   'use server'
   try {
     const session = await getSession()
@@ -44,25 +44,21 @@ export const getCurrentUser = query(async () => {
       return null
     }
 
-    const apiUrl = process.env.API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/users/${session.data.userId}`)
-    
-    if (!response.ok) {
-      return null
-    }
-    
-    return await response.json()
+    const user = await getUserById(session.data.userId)
+    return user
   } catch (error) {
     console.error('Error getting current user:', error)
     return null
   }
 }, 'getCurrentUser')
 
-// Registration action
-export const register = action(async (formData: FormData) => {
+// Registration action 
+export const registerAction = action(async (formData: FormData) => {
   'use server'
   
   try {
+    console.log('Starting registration process...')
+    
     const userData = registerSchema.parse({
       username: formData.get('username'),
       email: formData.get('email'),
@@ -71,28 +67,18 @@ export const register = action(async (formData: FormData) => {
       bio: formData.get('bio') || undefined,
     })
 
+    console.log('User data validated:', { ...userData, password: '[REDACTED]' })
+
     // Hash password
     const hashedPassword = await bcrypt.hash(userData.password, 10)
 
-    // Create user via API
-    const apiUrl = process.env.API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/users`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...userData,
-        password: hashedPassword,
-      }),
+    // Create user directly using the function
+    const newUser = await createUser({
+      ...userData,
+      password: hashedPassword,
     })
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Registration failed')
-    }
-
-    const newUser = await response.json()
+    console.log('User created successfully:', newUser.id)
 
     // Create session
     const session = await getSession()
@@ -102,17 +88,32 @@ export const register = action(async (formData: FormData) => {
       username: newUser.username,
     })
 
+    console.log('Session created, redirecting...')
     throw redirect('/')
   } catch (error) {
+    console.error('Registration error:', error)
+    
     if (error instanceof z.ZodError) {
       throw new Error(error.errors[0].message)
     }
+    
+    // Handle database constraint errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      const dbError = error as any // Type assertion for Prisma errors
+      if (dbError.code === 'P2002' && dbError.meta?.target?.includes('username')) {
+        throw new Error('Username already exists')
+      }
+      if (dbError.code === 'P2002' && dbError.meta?.target?.includes('email')) {
+        throw new Error('Email already exists')
+      }
+    }
+    
     throw error
   }
-}, 'register')
+})
 
-// Login action
-export const login = action(async (formData: FormData) => {
+// Login action - following your teacher's action pattern
+export const loginAction = action(async (formData: FormData) => {
   'use server'
   
   try {
@@ -121,27 +122,26 @@ export const login = action(async (formData: FormData) => {
       password: formData.get('password'),
     })
 
-    // Find user by email
-    const apiUrl = process.env.API_URL || 'http://localhost:3000'
-    const usersResponse = await fetch(`${apiUrl}/api/users`)
-    
-    if (!usersResponse.ok) {
-      throw new Error('Authentication failed')
-    }
-    
-    const users = await usersResponse.json()
+    // Get all users and find by email
+    const users = await getAllUsers()
+    console.log('Fetched users:', users.length, 'users found')
+    console.log('all users:', users.map(u => ({ email: u.email, hasPassword: !!u.password })))
     const user = users.find((u: any) => u.email === credentials.email)
     
+    console.log('User found:', !!user)
+    
     if (!user) {
-      throw new Error('Invalid email or password')
+      console.log('User not found for email:', credentials.email)
+      return { error: 'Invalid email or password' }
     }
 
-    // For now, we'll need to store hashed passwords in your user data
-    // You'll need to modify your user creation to include password field
+    // Verify password
     const isValidPassword = await bcrypt.compare(credentials.password, user.password || '')
+    console.log('User found:', { email: user.email, hasPassword: !!user.password })
     
     if (!isValidPassword) {
-      throw new Error('Invalid email or password')
+      console.log('Password validation failed')
+      return { error: 'Invalid email or password' }
     }
 
     // Create session
@@ -152,22 +152,26 @@ export const login = action(async (formData: FormData) => {
       username: user.username,
     })
 
-    throw redirect('/')
+    throw redirect('/') // This is correct for successful login
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new Error(error.errors[0].message)
+      return { error: error.errors[0].message }
     }
-    throw error
+    // Re-throw redirect errors
+    if (error instanceof Response) {
+      throw error
+    }
+    return { error: 'Login failed' }
   }
-}, 'login')
+})
 
 // Logout action
-export const logout = action(async () => {
+export const logoutAction = action(async () => {
   'use server'
   const session = await getSession()
   await session.clear()
   throw redirect('/login')
-}, 'logout')
+})
 
 // Check if user is authenticated
 export const requireAuth = async () => {
@@ -177,15 +181,4 @@ export const requireAuth = async () => {
     throw redirect('/login')
   }
   return session.data
-}
-
-// Protected route wrapper
-export const withAuth = <T extends any[]>(
-  handler: (...args: T) => Promise<any>
-) => {
-  return async (...args: T) => {
-    'use server'
-    await requireAuth()
-    return handler(...args)
-  }
 }
